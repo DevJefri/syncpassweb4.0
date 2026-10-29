@@ -41,7 +41,7 @@ export function Home() {
               onClick={() => auth.signinRedirect()}
               className="w-full px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium shadow-md shadow-blue-600/20"
             >
-              Iniciar sesión con Cognito
+              Iniciar sesión
             </button>
             <p className="text-xs text-slate-400 mt-6">Acceso seguro mediante AWS Cognito</p>
             <p className="text-xs text-slate-400 mt-1">Realizado por Jeferson Aquino y Karl Obreque</p>
