@@ -185,7 +185,7 @@ export function BeneficiarioPanel() {
                             <>
                               <button
                                 onClick={() => setEncuestaEvento(encuestaEvento === e.id_evento ? null : e.id_evento)}
-                                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
+                                className={`px-3 py-1.5 rounded-lg text-white text-sm ${encuestaEvento === e.id_evento ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                               >
                                 {encuestaEvento === e.id_evento ? 'Cerrar encuesta' : 'Encuesta'}
                               </button>
