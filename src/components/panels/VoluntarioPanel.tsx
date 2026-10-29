@@ -81,12 +81,12 @@ export function VoluntarioPanel() {
             const res = await registrarAsistencia(ins.id_inscripcion)
             const yaRegistrada = !res.ok && (res.error ?? '').toLowerCase().includes('duplicate')
             if (res.ok || yaRegistrada) {
-              setScanStatus('✅ Asistencia confirmada')
+              setScanStatus(`✅ Asistencia confirmada\nBeneficiario: ${ins.nombre}\nCorreo: ${ins.correo}\nEstado: ${ins.estado}`)
               if (selectedEvento) {
                 getInscritosByEvento(selectedEvento).then(setInscritos)
                 getMetricasEvento(selectedEvento).then((m) => setMetricas((prev) => ({ ...prev, [selectedEvento]: m })))
               }
-              setTimeout(() => setView('eventos'), 1500)
+              setTimeout(() => setView('eventos'), 6000)
             } else {
               setScanStatus(`❌ ${res.error ?? 'Error al registrar'}`)
             }
@@ -162,7 +162,11 @@ export function VoluntarioPanel() {
             </div>
             <div id={scannerDivId} className="w-full max-w-sm mx-auto" />
             {scanResult && <p className="text-xs text-zinc-500 break-all">Último: {scanResult}</p>}
-            {scanStatus && <p className="text-sm font-medium">{scanStatus}</p>}
+            {scanStatus && (
+              <div className="bg-white rounded-xl border border-zinc-200 p-4 text-slate-900 whitespace-pre-line text-sm font-medium">
+                {scanStatus}
+              </div>
+            )}
           </div>
         )}
 
