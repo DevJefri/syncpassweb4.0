@@ -184,22 +184,13 @@ export function BeneficiarioPanel() {
                           ) : (
                             <>
                               <button
-                                onClick={() => setEncuestaEvento(e.id_evento)}
+                                onClick={() => setEncuestaEvento(encuestaEvento === e.id_evento ? null : e.id_evento)}
                                 className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
                               >
-                                Encuesta
+                                {encuestaEvento === e.id_evento ? 'Cerrar encuesta' : 'Encuesta'}
                               </button>
                               {encuestaEvento === e.id_evento && (
                                 <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 space-y-3 mt-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Encuesta de satisfacción</span>
-                                    <button
-                                      onClick={() => setEncuestaEvento(null)}
-                                      className="text-xs px-2 py-1 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
-                                    >
-                                      Cerrar encuesta
-                                    </button>
-                                  </div>
                                   <div>
                                     <label className="text-sm text-zinc-500">Satisfacción (1 = pésimo, 4 = excelente)</label>
                                     <div className="flex gap-2 mt-1">
