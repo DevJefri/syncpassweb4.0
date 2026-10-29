@@ -471,15 +471,18 @@ export function DocentePanel() {
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Informes de impacto</h3>
                   {proyectos.length > 1 && (
-                    <select
-                      value={selectedProyecto ?? ''}
-                      onChange={(e) => setSelectedProyecto(Number(e.target.value))}
-                      className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50 text-sm"
-                    >
-                      {proyectos.map((p) => (
-                        <option key={p.id_proyecto} value={p.id_proyecto}>{p.titulo}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-zinc-500">Proyecto:</label>
+                      <select
+                        value={selectedProyecto ?? ''}
+                        onChange={(e) => setSelectedProyecto(Number(e.target.value))}
+                        className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50 text-sm"
+                      >
+                        {proyectos.map((p) => (
+                          <option key={p.id_proyecto} value={p.id_proyecto}>{p.titulo}</option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                 </div>
 
