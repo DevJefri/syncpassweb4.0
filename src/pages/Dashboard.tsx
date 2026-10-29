@@ -12,13 +12,24 @@ export function Dashboard() {
 
   const logoutUrl = `${authConfig.metadata.end_session_endpoint}?client_id=${authConfig.client_id}&logout_uri=${encodeURIComponent(authConfig.post_logout_redirect_uri!)}`
 
+  const name =
+    auth.user?.profile?.given_name ||
+    auth.user?.profile?.name ||
+    auth.user?.profile?.preferred_username ||
+    'Usuario'
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900 px-4 py-10">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Syncpass</h1>
-            <p className="text-sm text-zinc-500 mt-1">Rol: {role}</p>
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">S</span>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 leading-tight">SyncPass</h1>
+              <p className="text-xs text-slate-500">{role} · {name}</p>
+            </div>
           </div>
           <button
             onClick={() => {
@@ -26,22 +37,24 @@ export function Dashboard() {
                 window.location.href = logoutUrl
               })
             }}
-            className="px-4 py-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800 transition-colors"
           >
-            Cerrar sesión
+            Salir
           </button>
         </div>
+      </header>
 
+      <main className="max-w-6xl mx-auto px-4 py-6">
         {role === 'Administrador' && <AdminPanel />}
         {role === 'Docente' && <DocentePanel />}
         {role === 'Voluntario' && <VoluntarioPanel />}
         {role === 'Beneficiario' && <BeneficiarioPanel />}
         {role === 'Desconocido' && (
-          <div className="text-center text-zinc-500 mt-10">
+          <div className="text-center text-slate-500 mt-10">
             No se reconoció tu rol. Contacta al administrador.
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

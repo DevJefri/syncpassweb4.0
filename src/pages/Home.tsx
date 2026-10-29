@@ -6,32 +6,44 @@ export function Home() {
 
   if (auth.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
-        <div className="text-zinc-600 dark:text-zinc-300">Cargando...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <span className="text-slate-600 text-sm">Cargando...</span>
+        </div>
       </div>
     )
   }
 
   if (auth.error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900">
-        <div className="text-red-500">Error: {auth.error.message}</div>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-lg border border-red-200 p-6 max-w-md text-center">
+          <div className="text-red-500 text-lg font-semibold mb-2">Error de autenticación</div>
+          <p className="text-slate-600 text-sm">{auth.error.message}</p>
+        </div>
       </div>
     )
   }
 
   if (!auth.isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900 px-4">
-        <div className="w-full max-w-md text-center">
-          <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">Syncpass</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-8">Inicia sesión con Cognito para continuar</p>
-          <button
-            onClick={() => auth.signinRedirect()}
-            className="w-full px-6 py-3 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors font-medium"
-          >
-            Iniciar sesión
-          </button>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white/90 backdrop-blur rounded-2xl shadow-xl border border-slate-200 p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+              <span className="text-white text-2xl font-bold">S</span>
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">SyncPass</h1>
+            <p className="text-slate-500 mb-8 text-sm">Sistema de gestión de asistencia y eventos</p>
+            <button
+              onClick={() => auth.signinRedirect()}
+              className="w-full px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium shadow-md shadow-blue-600/20"
+            >
+              Iniciar sesión con Cognito
+            </button>
+            <p className="text-xs text-slate-400 mt-6">Acceso seguro mediante AWS Cognito</p>
+          </div>
         </div>
       </div>
     )
