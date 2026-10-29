@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { getEventos, getInscritosByEvento, registrarAsistencia, type Evento } from '../../lib/syncpass'
+import { getEventos, getInscritosByEvento, registrarAsistencia, getMetricasEvento, type Evento, type MetricasEvento } from '../../lib/syncpass'
 
 type View = 'eventos' | 'scanner' | 'inscritos'
 
 export function VoluntarioPanel() {
   const [view, setView] = useState<View>('eventos')
   const [eventos, setEventos] = useState<Evento[]>([])
+  const [metricas, setMetricas] = useState<Record<number, MetricasEvento>>({})
   const [selectedEvento, setSelectedEvento] = useState<number | null>(null)
   const [inscritos, setInscritos] = useState<{ id_inscripcion: number; id_usuario: number; id_evento: number; nombre: string; correo: string; estado: string; asistio: boolean }[]>([])
   const [loading, setLoading] = useState(true)
@@ -17,8 +18,11 @@ export function VoluntarioPanel() {
 
   useEffect(() => {
     let mounted = true
-    getEventos().then((evs) => {
+    getEventos().then(async (evs) => {
       if (mounted) { setEventos(evs); setLoading(false) }
+      const m: Record<number, MetricasEvento> = {}
+      for (const e of evs) m[e.id_evento] = await getMetricasEvento(e.id_evento)
+      if (mounted) setMetricas(m)
     })
     return () => { mounted = false }
   }, [])
@@ -61,7 +65,10 @@ export function VoluntarioPanel() {
             const yaRegistrada = !res.ok && (res.error ?? '').toLowerCase().includes('duplicate')
             if (res.ok || yaRegistrada) {
               setScanStatus('✅ Asistencia confirmada')
-              if (selectedEvento) getInscritosByEvento(selectedEvento).then(setInscritos)
+              if (selectedEvento) {
+                getInscritosByEvento(selectedEvento).then(setInscritos)
+                getMetricasEvento(selectedEvento).then((m) => setMetricas((prev) => ({ ...prev, [selectedEvento]: m })))
+              }
               setTimeout(() => setView('eventos'), 1500)
             } else {
               setScanStatus(`❌ ${res.error ?? 'Error al registrar'}`)
@@ -96,13 +103,21 @@ export function VoluntarioPanel() {
           <div className="px-6 py-5 space-y-3">
             {loading && <p className="text-zinc-500 text-sm">Cargando...</p>}
             {!loading && eventos.length === 0 && <p className="text-zinc-500 text-sm">No hay eventos.</p>}
-            {eventos.map((e) => (
-              <div key={e.id_evento} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
-                <div className="font-medium text-zinc-900 dark:text-zinc-50">{e.nombre}</div>
-                <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {new Date(e.fecha_inicio).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · {e.recinto ?? 'Sin sala'} · Cupos: {e.cupos_maximos}
-                </div>
-                <div className="mt-3 flex gap-2">
+            {eventos.map((e) => {
+              const m = metricas[e.id_evento]
+              return (
+                <div key={e.id_evento} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                  <div className="font-medium text-zinc-900 dark:text-zinc-50">{e.nombre}</div>
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {new Date(e.fecha_inicio).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · {e.recinto ?? 'Sin sala'} · Cupos: {e.cupos_maximos}
+                  </div>
+                  {m && (
+                    <div className="mt-2 flex gap-4 text-sm">
+                      <div>Asistentes: <span className="font-semibold text-green-600">{m.totalAsistencias}</span></div>
+                      <div>Faltantes: <span className="font-semibold text-amber-600">{m.totalInscritos - m.totalAsistencias}</span></div>
+                    </div>
+                  )}
+                  <div className="mt-3 flex gap-2">
                   <button
                     onClick={() => { setSelectedEvento(e.id_evento); setView('inscritos') }}
                     className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900"
@@ -117,7 +132,8 @@ export function VoluntarioPanel() {
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
