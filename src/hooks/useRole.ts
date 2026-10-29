@@ -6,11 +6,13 @@ export type Role = 'Docente' | 'Voluntario' | 'Beneficiario' | 'Administrador' |
 const ROLE_MAP: Record<string, Role> = {
   administrador: 'Administrador',
   admin: 'Administrador',
-  colaborador: 'Voluntario',
-  voluntario: 'Voluntario',
-  cliente: 'Beneficiario',
-  beneficiario: 'Beneficiario',
   docente: 'Docente',
+  profesor: 'Docente',
+  voluntario: 'Voluntario',
+  colaborador: 'Voluntario',
+  beneficiario: 'Beneficiario',
+  cliente: 'Beneficiario',
+  estudiante: 'Beneficiario',
 }
 
 export function useRole(): Role {

@@ -1,21 +1,76 @@
-import { useState } from 'react'
-
-type Tab = 'info' | 'eventos' | 'qr'
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'info', label: 'Mi información' },
-  { id: 'eventos', label: 'Eventos' },
-  { id: 'qr', label: 'Mi pase QR' },
-]
-
-const EVENTOS = [
-  { id: 1, nombre: 'Taller de reciclaje', fecha: '2026-11-05', hora: '10:00', sala: 'Sala A', inscrito: true },
-  { id: 2, nombre: 'Charla ambiental', fecha: '2026-11-12', hora: '15:30', sala: 'Sala B', inscrito: false },
-]
+import { useEffect, useState } from 'react'
+import { useAuth } from 'react-oidc-context'
+import { useRole } from '../../hooks/useRole'
+import { decodeJwt } from '../../utils/jwt'
+import { QRCodeSVG } from 'qrcode.react'
+import { getOrCreateUsuario, getEventos, getInscripciones, inscribirse, desinscribirse, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpass'
 
 export function BeneficiarioPanel() {
-  const [tab, setTab] = useState<Tab>('info')
-  const [selected, setSelected] = useState<number | null>(null)
+  const auth = useAuth()
+  const role = useRole()
+  const [tab, setTab] = useState<'info' | 'eventos' | 'qr'>('info')
+  const [usuario, setUsuario] = useState<Usuario | null>(null)
+  const [eventos, setEventos] = useState<Evento[]>([])
+  const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [qrEvento, setQrEvento] = useState<number | null>(null)
+
+  const idClaims = decodeJwt(auth.user?.id_token)
+  const accessClaims = decodeJwt(auth.user?.access_token)
+  const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || '-'
+  const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      setLoading(true)
+      const u = await getOrCreateUsuario(email, name, role)
+      const evs = await getEventos()
+      const ins = u ? await getInscripciones(u.id_usuario) : []
+      if (mounted) {
+        setUsuario(u)
+        setEventos(evs)
+        setInscripciones(ins)
+        setLoading(false)
+      }
+    }
+    if (email) load()
+    return () => { mounted = false }
+  }, [email, name, role])
+
+  const estaInscrito = (idEvento: number) => inscripciones.some((i) => i.id_evento === idEvento && i.estado !== 'CANCELADO')
+
+  const handleInscribir = async (idEvento: number) => {
+    if (!usuario) return
+    const ins = await inscribirse(usuario.id_usuario, idEvento)
+    if (ins) {
+      setInscripciones((prev) => {
+        const exists = prev.some((i) => i.id_evento === idEvento)
+        if (exists) {
+          return prev.map((i) => (i.id_evento === idEvento ? { ...i, estado: 'INSCRITO', id_inscripcion: ins.id_inscripcion } : i))
+        }
+        return [...prev, ins]
+      })
+      setQrEvento(idEvento)
+      setTab('qr')
+    }
+  }
+
+  const handleDesinscribir = async (idEvento: number) => {
+    if (!usuario) return
+    const ok = await desinscribirse(usuario.id_usuario, idEvento)
+    if (ok) {
+      setInscripciones((prev) =>
+        prev.map((i) => (i.id_evento === idEvento ? { ...i, estado: 'CANCELADO' } : i)),
+      )
+    }
+  }
+
+  const TABS = [
+    { id: 'info' as const, label: 'Mi información' },
+    { id: 'eventos' as const, label: 'Eventos' },
+    { id: 'qr' as const, label: 'Mi pase QR' },
+  ]
 
   return (
     <div className="w-full max-w-4xl mx-auto mt-6">
@@ -42,50 +97,86 @@ export function BeneficiarioPanel() {
         </div>
 
         <div className="px-6 py-5">
-          {tab === 'info' && (
+          {loading && <p className="text-zinc-500 text-sm">Cargando...</p>}
+
+          {!loading && tab === 'info' && (
             <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
-              <div><span className="text-zinc-500">Nombre:</span> Juan Pérez</div>
-              <div><span className="text-zinc-500">Correo:</span> juan@example.com</div>
-              <div><span className="text-zinc-500">Teléfono:</span> +56912345678</div>
+              <div><span className="text-zinc-500">Nombre:</span> {name}</div>
+              <div><span className="text-zinc-500">Correo:</span> {usuario?.correo ?? email}</div>
+              <div><span className="text-zinc-500">Estado:</span> {usuario?.estado ?? '-'}</div>
             </div>
           )}
-          {tab === 'eventos' && (
+
+          {!loading && tab === 'eventos' && (
             <div className="space-y-3">
-              {EVENTOS.map((e) => (
-                <div key={e.id} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-zinc-900 dark:text-zinc-50">{e.nombre}</div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {e.fecha} · {e.hora} · {e.sala}
+              {eventos.length === 0 && <p className="text-zinc-500 text-sm">No hay eventos disponibles.</p>}
+              {eventos.map((e) => (
+                <div key={e.id_evento} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-zinc-900 dark:text-zinc-50">{e.nombre}</div>
+                      <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {new Date(e.fecha_inicio).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · {e.recinto ?? 'Sin sala'}
+                      </div>
+                      <div className={`text-xs mt-1 ${estaInscrito(e.id_evento) ? 'text-green-600' : 'text-amber-600'}`}>
+                        {estaInscrito(e.id_evento) ? 'Inscrito' : 'No inscrito'}
+                      </div>
                     </div>
-                    <div className={`text-xs mt-1 ${e.inscrito ? 'text-green-600' : 'text-amber-600'}`}>
-                      {e.inscrito ? 'Inscrito' : 'No inscrito'}
+                    <div className="flex gap-2">
+                      {!estaInscrito(e.id_evento) && (
+                        <button
+                          onClick={() => handleInscribir(e.id_evento)}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900"
+                        >
+                          Inscribirme
+                        </button>
+                      )}
+                      {estaInscrito(e.id_evento) && (
+                        <>
+                          <button
+                            onClick={() => handleDesinscribir(e.id_evento)}
+                            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
+                          >
+                            Desuscribirme
+                          </button>
+                          <button
+                            onClick={() => { setQrEvento(e.id_evento); setTab('qr') }}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-sm"
+                          >
+                            Mostrar QR
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  {!e.inscrito && (
-                    <button
-                      onClick={() => setSelected(e.id)}
-                      className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900"
-                    >
-                      Inscribirme
-                    </button>
-                  )}
                 </div>
               ))}
-              {selected && (
-                <div className="text-sm text-green-600">
-                  Inscrito en el evento #{selected}. Ve a "Mi pase QR".
-                </div>
-              )}
             </div>
           )}
-          {tab === 'qr' && (
-            <div className="border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-8 text-center">
-              <p className="text-zinc-500 text-sm mb-4">Tu pase QR para el evento inscrito</p>
-              <div className="mx-auto w-40 h-40 bg-zinc-200 dark:bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-400 text-xs">
-                QR placeholder
-              </div>
-              <p className="text-xs text-zinc-400 mt-3">Muestra este código al ingresar al evento.</p>
+
+          {!loading && tab === 'qr' && (
+            <div className="space-y-4">
+              {(() => {
+                const inscritos = inscripciones.filter((i) => i.estado !== 'CANCELADO')
+                if (inscritos.length === 0) {
+                  return <p className="text-zinc-500 text-sm">No tienes inscripciones activas. Inscríbete en un evento.</p>
+                }
+                const mostrar = qrEvento ? inscritos.filter((i) => i.id_evento === qrEvento) : inscritos
+                const lista = mostrar.length ? mostrar : inscritos
+                return lista.map((ins) => {
+                  const ev = eventos.find((e) => e.id_evento === ins.id_evento)
+                  return (
+                    <div key={ins.id_inscripcion} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center">
+                      <p className="text-zinc-900 dark:text-zinc-50 font-medium mb-1">{ev?.nombre ?? `Evento #${ins.id_evento}`}</p>
+                      <p className="text-xs text-zinc-500 mb-4">{ev ? new Date(ev.fecha_inicio).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''} · {ev?.recinto ?? ''}</p>
+                      <div className="mx-auto w-40 h-40 bg-zinc-200 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
+                        <QRCodeSVG value={`syncpass:asistencia:${usuario?.id_usuario ?? 0}:${ins.id_evento}`} size={140} />
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-3">Muestra este código al ingresar al evento.</p>
+                    </div>
+                  )
+                })
+              })()}
             </div>
           )}
         </div>
