@@ -185,11 +185,11 @@ export function AdminPanel() {
                   <tbody>
                     {usuarios.map((u) => (
                       <tr key={u.id_usuario} className="border-b border-zinc-100 dark:border-zinc-800">
-                        <td className="py-2 text-zinc-500">{u.id_usuario}</td>
-                        <td className="py-2 text-zinc-900 dark:text-zinc-50">{u.nombre_usuario}</td>
-                        <td className="py-2 text-zinc-600 dark:text-zinc-400">{u.nombre_mostrar}</td>
-                        <td className="py-2 text-zinc-600 dark:text-zinc-400">{u.correo}</td>
-                        <td className="py-2">{u.rol_nombre ?? u.id_rol}</td>
+                        <td className="py-2 text-slate-500">{u.id_usuario}</td>
+                        <td className="py-2 text-slate-900 dark:text-slate-100">{u.nombre_usuario}</td>
+                        <td className="py-2 text-slate-600 dark:text-slate-300">{u.nombre_mostrar}</td>
+                        <td className="py-2 text-slate-600 dark:text-slate-300">{u.correo}</td>
+                        <td className="py-2 text-slate-900 dark:text-slate-100 font-medium">{u.rol_nombre ?? u.id_rol}</td>
                         <td className="py-2">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${u.estado === 'ACTIVO' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
                             {u.estado}
