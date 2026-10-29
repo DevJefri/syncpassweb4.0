@@ -23,6 +23,7 @@ export function VoluntarioPanel() {
   const [loading, setLoading] = useState(true)
   const [scanResult, setScanResult] = useState<string>('')
   const [scanStatus, setScanStatus] = useState<string>('')
+  const [scanSuccess, setScanSuccess] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannerDivId = 'qr-reader-vol'
 
@@ -81,12 +82,22 @@ export function VoluntarioPanel() {
             const res = await registrarAsistencia(ins.id_inscripcion)
             const yaRegistrada = !res.ok && (res.error ?? '').toLowerCase().includes('duplicate')
             if (res.ok || yaRegistrada) {
+              setScanSuccess(true)
               setScanStatus(`✅ Asistencia confirmada\nBeneficiario: ${ins.nombre}\nCorreo: ${ins.correo}\nEstado: ${ins.estado}`)
               if (selectedEvento) {
                 getInscritosByEvento(selectedEvento).then(setInscritos)
                 getMetricasEvento(selectedEvento).then((m) => setMetricas((prev) => ({ ...prev, [selectedEvento]: m })))
               }
-              setTimeout(() => setView('eventos'), 6000)
+              if (scannerRef.current) {
+                scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => {})
+                scannerRef.current = null
+              }
+              setTimeout(() => {
+                setScanSuccess(false)
+                setScanStatus('')
+                setScanResult('')
+                setView('eventos')
+              }, 6000)
             } else {
               setScanStatus(`❌ ${res.error ?? 'Error al registrar'}`)
             }
@@ -160,9 +171,20 @@ export function VoluntarioPanel() {
               <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Escanear QR — {selectedEv.nombre}</h3>
               <button onClick={() => setView('eventos')} className="text-sm text-zinc-500 hover:text-zinc-700">← Volver</button>
             </div>
-            <div id={scannerDivId} className="w-full max-w-sm mx-auto" />
-            {scanResult && <p className="text-xs text-zinc-500 break-all">Último: {scanResult}</p>}
-            {scanStatus && (
+            {!scanSuccess && <div id={scannerDivId} className="w-full max-w-sm mx-auto" />}
+            {scanResult && !scanSuccess && <p className="text-xs text-zinc-500 break-all">Último: {scanResult}</p>}
+            {scanSuccess && (
+              <div className="flex flex-col items-center justify-center py-6">
+                <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+                  <span className="text-3xl text-green-600">✓</span>
+                </div>
+                <div className="bg-white rounded-xl border border-zinc-200 p-4 text-slate-900 whitespace-pre-line text-sm font-medium text-center shadow-lg">
+                  {scanStatus}
+                </div>
+                <p className="text-xs text-zinc-400 mt-4">Volviendo a la lista en 6 segundos...</p>
+              </div>
+            )}
+            {!scanSuccess && scanStatus && (
               <div className="bg-white rounded-xl border border-zinc-200 p-4 text-slate-900 whitespace-pre-line text-sm font-medium">
                 {scanStatus}
               </div>
