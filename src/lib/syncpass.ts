@@ -34,6 +34,7 @@ export type Usuario = {
   nombre_mostrar: string
   correo: string
   estado: string
+  rol_nombre?: string
 }
 
 export type Proyecto = {
@@ -270,6 +271,43 @@ export async function registrarEncuesta(idInscripcion: number, calificacion: num
     identificador_operacion: crypto.randomUUID(),
   }, { onConflict: 'id_inscripcion' })
   if (error) { console.error('registrarEncuesta:', error); return false }
+  return true
+}
+export async function getRoles(): Promise<{ id_rol: number; nombre: string; descripcion: string | null }[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase.from('rol').select('*').order('id_rol')
+  if (error) { console.error('getRoles:', error); return [] }
+  return (data ?? []) as any[]
+}
+
+export async function getUsuarios(): Promise<Usuario[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('usuario')
+    .select('*, rol:rol(nombre)')
+    .order('id_usuario')
+  if (error) { console.error('getUsuarios:', error); return [] }
+  return (data ?? []).map((u: any) => ({ ...u, rol_nombre: u.rol?.nombre })) as Usuario[]
+}
+
+export async function createUsuario(u: Omit<Usuario, 'id_usuario' | 'fecha_creacion'>): Promise<Usuario | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.from('usuario').insert(u).select('*').single()
+  if (error) { console.error('createUsuario:', error); return null }
+  return data as Usuario
+}
+
+export async function updateUsuario(idUsuario: number, u: Partial<Omit<Usuario, 'id_usuario' | 'fecha_creacion'>>): Promise<Usuario | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.from('usuario').update(u).eq('id_usuario', idUsuario).select('*').single()
+  if (error) { console.error('updateUsuario:', error); return null }
+  return data as Usuario
+}
+
+export async function deleteUsuario(idUsuario: number): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('usuario').delete().eq('id_usuario', idUsuario)
+  if (error) { console.error('deleteUsuario:', error); return false }
   return true
 }
 export async function getMetricasEvento(idEvento: number): Promise<MetricasEvento> {
