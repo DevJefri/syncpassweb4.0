@@ -169,9 +169,13 @@ export function BeneficiarioPanel() {
                     <div key={ins.id_inscripcion} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center">
                       <p className="text-zinc-900 dark:text-zinc-50 font-medium mb-1">{ev?.nombre ?? `Evento #${ins.id_evento}`}</p>
                       <p className="text-xs text-zinc-500 mb-4">{ev ? new Date(ev.fecha_inicio).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''} · {ev?.recinto ?? ''}</p>
-                      <div className="mx-auto w-40 h-40 bg-zinc-200 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
-                        <QRCodeSVG value={`syncpass:asistencia:${usuario?.id_usuario ?? 0}:${ins.id_evento}`} size={140} />
-                      </div>
+                      {usuario ? (
+                        <div className="mx-auto inline-block p-3 bg-white rounded-lg">
+                          <QRCodeSVG value={`syncpass:asistencia:${usuario.id_usuario}:${ins.id_evento}`} size={160} level="M" />
+                        </div>
+                      ) : (
+                        <p className="text-zinc-500 text-sm">Cargando usuario...</p>
+                      )}
                       <p className="text-xs text-zinc-400 mt-3">Muestra este código al ingresar al evento.</p>
                     </div>
                   )
