@@ -23,6 +23,8 @@ export type Inscripcion = {
   id_evento: number
   estado: string
   fecha_inscripcion: string
+  asistencia?: { estado_validacion: string } | null
+  encuesta?: { calificacion: number; utilidad: string; comentarios: string | null } | null
 }
 
 export type Usuario = {
@@ -121,13 +123,17 @@ export async function getInscripciones(idUsuario: number): Promise<Inscripcion[]
   if (!supabase) return []
   const { data, error } = await supabase
     .from('inscripcion')
-    .select('*')
+    .select('*, asistencia:asistencia(estado_validacion), encuesta:encuesta(calificacion, utilidad, comentarios)')
     .eq('id_usuario', idUsuario)
   if (error) {
     console.error('getInscripciones:', error)
     return []
   }
-  return (data ?? []) as Inscripcion[]
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    asistencia: Array.isArray(row.asistencia) ? row.asistencia[0] ?? null : row.asistencia ?? null,
+    encuesta: Array.isArray(row.encuesta) ? row.encuesta[0] ?? null : row.encuesta ?? null,
+  })) as Inscripcion[]
 }
 
 export async function inscribirse(idUsuario: number, idEvento: number): Promise<Inscripcion | null> {
@@ -253,6 +259,18 @@ export async function registrarAsistencia(idInscripcion: number, lat?: number, l
   })
   if (error) { console.error('registrarAsistencia:', error); return { ok: false, error: error.message } }
   return { ok: true }
+}
+export async function registrarEncuesta(idInscripcion: number, calificacion: number, utilidad: string = 'MUY_UTIL', comentarios?: string): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('encuesta').upsert({
+    id_inscripcion: idInscripcion,
+    calificacion,
+    utilidad,
+    comentarios: comentarios || null,
+    identificador_operacion: crypto.randomUUID(),
+  }, { onConflict: 'id_inscripcion' })
+  if (error) { console.error('registrarEncuesta:', error); return false }
+  return true
 }
 export async function getMetricasEvento(idEvento: number): Promise<MetricasEvento> {
   const empty: MetricasEvento = { totalInscritos: 0, totalAsistencias: 0, porcentajeAsistencia: 0, encuestasRespondidas: 0, porcentajeEncuestas: 0, satisfaccionPromedio: 0, comentarios: [] }

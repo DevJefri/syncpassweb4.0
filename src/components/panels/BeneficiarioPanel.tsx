@@ -3,7 +3,7 @@ import { useAuth } from 'react-oidc-context'
 import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
 import { QRCodeSVG } from 'qrcode.react'
-import { getOrCreateUsuario, getEventos, getInscripciones, inscribirse, desinscribirse, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpass'
+import { getOrCreateUsuario, getEventos, getInscripciones, inscribirse, desinscribirse, registrarEncuesta, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpass'
 
 export function BeneficiarioPanel() {
   const auth = useAuth()
@@ -14,6 +14,9 @@ export function BeneficiarioPanel() {
   const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
   const [loading, setLoading] = useState(true)
   const [qrEvento, setQrEvento] = useState<number | null>(null)
+  const [encuestaEvento, setEncuestaEvento] = useState<number | null>(null)
+  const [calificacion, setCalificacion] = useState(4)
+  const [comentarios, setComentarios] = useState('')
 
   const idClaims = decodeJwt(auth.user?.id_token)
   const accessClaims = decodeJwt(auth.user?.access_token)
@@ -56,6 +59,16 @@ export function BeneficiarioPanel() {
     }
   }
 
+  const tieneAsistencia = (idEvento: number) => {
+    const ins = inscripciones.find((i) => i.id_evento === idEvento)
+    return !!ins?.asistencia && ins.asistencia.estado_validacion === 'VALIDADA'
+  }
+
+  const yaRespondioEncuesta = (idEvento: number) => {
+    const ins = inscripciones.find((i) => i.id_evento === idEvento)
+    return !!ins?.encuesta
+  }
+
   const handleDesinscribir = async (idEvento: number) => {
     if (!usuario) return
     const ok = await desinscribirse(usuario.id_usuario, idEvento)
@@ -66,6 +79,23 @@ export function BeneficiarioPanel() {
     }
   }
 
+  const handleEnviarEncuesta = async (idEvento: number) => {
+    const ins = inscripciones.find((i) => i.id_evento === idEvento)
+    if (!ins) return
+    const ok = await registrarEncuesta(ins.id_inscripcion, calificacion, 'MUY_UTIL', comentarios)
+    if (ok) {
+      setInscripciones((prev) =>
+        prev.map((i) =>
+          i.id_evento === idEvento
+            ? { ...i, encuesta: { calificacion, utilidad: 'MUY_UTIL', comentarios: comentarios || null } }
+            : i,
+        ),
+      )
+      setEncuestaEvento(null)
+      setComentarios('')
+      setCalificacion(4)
+    }
+  }
   const TABS = [
     { id: 'info' as const, label: 'Mi información' },
     { id: 'eventos' as const, label: 'Eventos' },
@@ -110,7 +140,7 @@ export function BeneficiarioPanel() {
           {!loading && tab === 'eventos' && (
             <div className="space-y-3">
               {eventos.length === 0 && <p className="text-zinc-500 text-sm">No hay eventos disponibles.</p>}
-              {eventos.map((e) => (
+              {(encuestaEvento ? eventos.filter((e) => e.id_evento === encuestaEvento) : eventos).map((e) => (
                 <div key={e.id_evento} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -122,7 +152,7 @@ export function BeneficiarioPanel() {
                         {estaInscrito(e.id_evento) ? 'Inscrito' : 'No inscrito'}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       {!estaInscrito(e.id_evento) && (
                         <button
                           onClick={() => handleInscribir(e.id_evento)}
@@ -131,7 +161,7 @@ export function BeneficiarioPanel() {
                           Inscribirme
                         </button>
                       )}
-                      {estaInscrito(e.id_evento) && (
+                      {estaInscrito(e.id_evento) && !tieneAsistencia(e.id_evento) && (
                         <>
                           <button
                             onClick={() => handleDesinscribir(e.id_evento)}
@@ -146,6 +176,52 @@ export function BeneficiarioPanel() {
                             Mostrar QR
                           </button>
                         </>
+                      )}
+                      {estaInscrito(e.id_evento) && tieneAsistencia(e.id_evento) && (
+                        <div className="w-full mt-2 space-y-2">
+                          {yaRespondioEncuesta(e.id_evento) ? (
+                            <p className="text-sm text-green-600">Encuesta enviada: {inscripciones.find((i) => i.id_evento === e.id_evento)?.encuesta?.calificacion}/4 ⭐</p>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setEncuestaEvento(encuestaEvento === e.id_evento ? null : e.id_evento)}
+                                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
+                              >
+                                {encuestaEvento === e.id_evento ? 'Cerrar encuesta' : 'Encuesta'}
+                              </button>
+                              {encuestaEvento === e.id_evento && (
+                                <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 space-y-3 mt-2">
+                                  <div>
+                                    <label className="text-sm text-zinc-500">Satisfacción (1 = pésimo, 4 = excelente)</label>
+                                    <div className="flex gap-2 mt-1">
+                                      {[1, 2, 3, 4].map((n) => (
+                                        <button
+                                          key={n}
+                                          onClick={() => setCalificacion(n)}
+                                          className={`w-10 h-10 rounded-lg text-sm font-medium ${calificacion === n ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'}`}
+                                        >
+                                          {n}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <textarea
+                                    value={comentarios}
+                                    onChange={(ev) => setComentarios(ev.target.value)}
+                                    placeholder="Comentarios (opcional)"
+                                    className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50 text-sm"
+                                  />
+                                  <button
+                                    onClick={() => handleEnviarEncuesta(e.id_evento)}
+                                    className="px-4 py-2 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900"
+                                  >
+                                    Enviar encuesta
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
