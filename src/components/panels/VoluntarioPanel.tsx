@@ -58,8 +58,14 @@ export function VoluntarioPanel() {
             })())
           if (ins) {
             const res = await registrarAsistencia(ins.id_inscripcion)
-            setScanStatus(res.ok ? `✅ Asistencia registrada: ${ins.nombre}` : `❌ ${res.error ?? 'Error al registrar'}`)
-            if (res.ok && selectedEvento) getInscritosByEvento(selectedEvento).then(setInscritos)
+            const yaRegistrada = !res.ok && (res.error ?? '').toLowerCase().includes('duplicate')
+            if (res.ok || yaRegistrada) {
+              setScanStatus('✅ Asistencia confirmada')
+              if (selectedEvento) getInscritosByEvento(selectedEvento).then(setInscritos)
+              setTimeout(() => setView('eventos'), 1500)
+            } else {
+              setScanStatus(`❌ ${res.error ?? 'Error al registrar'}`)
+            }
           } else {
             setScanStatus('❌ No está en la lista de inscritos')
           }
