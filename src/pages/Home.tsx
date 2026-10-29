@@ -35,7 +35,8 @@ export function Home() {
               <span className="text-white text-2xl font-bold">S</span>
             </div>
             <h1 className="text-3xl font-bold text-slate-900 mb-2">SyncPass</h1>
-            <p className="text-slate-500 mb-8 text-sm">Sistema de gestión de asistencia y eventos</p>
+            <p className="text-slate-500 mb-1 text-sm">Sistema de gestión de asistencia y eventos</p>
+            <p className="text-slate-400 mb-8 text-xs">Desarrollado por Duoc UC</p>
             <button
               onClick={() => auth.signinRedirect()}
               className="w-full px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium shadow-md shadow-blue-600/20"
@@ -43,6 +44,8 @@ export function Home() {
               Iniciar sesión con Cognito
             </button>
             <p className="text-xs text-slate-400 mt-6">Acceso seguro mediante AWS Cognito</p>
+            <p className="text-xs text-slate-400 mt-1">Realizado por Jeferson Aquino y Karl Obreque</p>
+            <p className="text-xs text-slate-300 mt-1">© Todos los derechos reservados</p>
           </div>
         </div>
       </div>
