@@ -1,9 +1,9 @@
 const env = import.meta.env as Record<string, string | undefined>
 
-const region = env.VITE_AWS_REGION || env.AWS_REGION || 'us-east-1'
-const userPoolId = env.VITE_COGNITO_USER_POOL_ID || env.COGNITO_USER_POOL_ID || 'us-east-1_lLYEkDgbK'
+const region = env.VITE_AWS_REGION || env.AWS_REGION || 'us-west-2'
+const userPoolId = env.VITE_COGNITO_USER_POOL_ID || env.COGNITO_USER_POOL_ID || 'us-west-2_lLYEkDgbK'
 const clientId = env.VITE_COGNITO_CLIENT_ID || env.COGNITO_CLIENT_ID || '5hd36m6qsssbl237dmalv18pv1'
-const cognitoDomain = env.VITE_COGNITO_DOMAIN || env.COGNITO_DOMAIN || 'https://us-east-1llyekdgbk.auth.us-east-1.amazoncognito.com'
+const cognitoDomain = env.VITE_COGNITO_DOMAIN || env.COGNITO_DOMAIN || 'https://us-west-2llyekdgbk.auth.us-west-2.amazoncognito.com'
 const redirectUri =
   env.VITE_COGNITO_REDIRECT_URI || env.COGNITO_REDIRECT_URI || (typeof window !== 'undefined' ? window.location.origin + '/' : 'http://localhost:5173/')
 const logoutUri =
