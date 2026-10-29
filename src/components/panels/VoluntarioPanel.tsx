@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
+import { getEventos, getInscritosByEvento, registrarAsistencia, getMetricasEvento, getOrCreateUsuario, type Evento, type MetricasEvento } from '../../lib/syncpass'
 import { useAuth } from 'react-oidc-context'
 import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
-import { Html5Qrcode } from 'html5-qrcode'
-import { getEventos, getInscritosByEvento, registrarAsistencia, getMetricasEvento, getOrCreateUsuario, type Evento, type MetricasEvento } from '../../lib/syncpass'
 
 type View = 'eventos' | 'scanner' | 'inscritos'
 
@@ -25,6 +25,7 @@ export function VoluntarioPanel() {
   const [scanStatus, setScanStatus] = useState<string>('')
   const [scanSuccess, setScanSuccess] = useState(false)
   const scannerRef = useRef<Html5Qrcode | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scannerDivId = 'qr-reader-vol'
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function VoluntarioPanel() {
       }
       return
     }
+
     const scanner = new Html5Qrcode(scannerDivId)
     scannerRef.current = scanner
     scanner.start(
@@ -89,10 +91,11 @@ export function VoluntarioPanel() {
                 getMetricasEvento(selectedEvento).then((m) => setMetricas((prev) => ({ ...prev, [selectedEvento]: m })))
               }
               if (scannerRef.current) {
-                scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => {})
+                scannerRef.current.stop().catch(() => {})
                 scannerRef.current = null
               }
-              setTimeout(() => {
+              if (timeoutRef.current) clearTimeout(timeoutRef.current)
+              timeoutRef.current = setTimeout(() => {
                 setScanSuccess(false)
                 setScanStatus('')
                 setScanResult('')
@@ -112,8 +115,14 @@ export function VoluntarioPanel() {
     ).catch((err) => setScanStatus(`Error cámara: ${err}`))
 
     return () => {
-      scanner.stop().then(() => scanner.clear()).catch(() => {})
-      scannerRef.current = null
+      if (scannerRef.current) {
+        scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => {})
+        scannerRef.current = null
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
     }
   }, [view])
 
@@ -146,20 +155,20 @@ export function VoluntarioPanel() {
                     </div>
                   )}
                   <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => { setSelectedEvento(e.id_evento); setView('inscritos') }}
-                    className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900"
-                  >
-                    Lista de inscritos
-                  </button>
-                  <button
-                    onClick={() => { setSelectedEvento(e.id_evento); setView('scanner') }}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
-                  >
-                    Escanear QR
-                  </button>
+                    <button
+                      onClick={() => { setSelectedEvento(e.id_evento); setView('inscritos') }}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900"
+                    >
+                      Lista de inscritos
+                    </button>
+                    <button
+                      onClick={() => { setSelectedEvento(e.id_evento); setView('scanner') }}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
+                    >
+                      Escanear QR
+                    </button>
+                  </div>
                 </div>
-              </div>
               )
             })}
           </div>
@@ -172,7 +181,7 @@ export function VoluntarioPanel() {
               <button onClick={() => setView('eventos')} className="text-sm text-zinc-500 hover:text-zinc-700">← Volver</button>
             </div>
             {!scanSuccess && <div id={scannerDivId} className="w-full max-w-sm mx-auto" />}
-            {scanResult && !scanSuccess && <p className="text-xs text-zinc-500 break-all">Último: {scanResult}</p>}
+            {!scanSuccess && scanResult && <p className="text-xs text-zinc-500 break-all">Último: {scanResult}</p>}
             {scanSuccess && (
               <div className="flex flex-col items-center justify-center py-6">
                 <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
