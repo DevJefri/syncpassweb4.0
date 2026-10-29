@@ -19,10 +19,13 @@ export function VoluntarioPanel() {
   useEffect(() => {
     let mounted = true
     getEventos().then(async (evs) => {
-      if (mounted) { setEventos(evs); setLoading(false) }
       const m: Record<number, MetricasEvento> = {}
       for (const e of evs) m[e.id_evento] = await getMetricasEvento(e.id_evento)
-      if (mounted) setMetricas(m)
+      if (mounted) {
+        setEventos(evs)
+        setMetricas(m)
+        setLoading(false)
+      }
     })
     return () => { mounted = false }
   }, [])
