@@ -456,18 +456,80 @@ export function DocentePanel() {
             </div>
           )}
 
-          {!loading && tab === 'informes' && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Informes de impacto</h3>
-              <textarea
-                className="w-full min-h-[160px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50"
-                placeholder="Redacta aquí el informe de impacto del proyecto..."
-              />
-              <button className="px-4 py-2 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900">
-                Guardar informe
-              </button>
-            </div>
-          )}
+          {!loading && tab === 'informes' && (() => {
+            const totalInscritos = Object.values(metricas).reduce((a, m) => a + m.totalInscritos, 0)
+            const totalAsistencias = Object.values(metricas).reduce((a, m) => a + m.totalAsistencias, 0)
+            const totalEncuestas = Object.values(metricas).reduce((a, m) => a + m.encuestasRespondidas, 0)
+            const promedio = totalEncuestas > 0
+              ? (Object.values(metricas).reduce((a, m) => a + m.satisfaccionPromedio * m.encuestasRespondidas, 0) / totalEncuestas).toFixed(2)
+              : '0'
+            const comentarios = Object.values(metricas).flatMap((m) => m.comentarios)
+            const proyecto = proyectos.find((p) => p.id_proyecto === selectedProyecto)
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Informes de impacto</h3>
+                  {proyectos.length > 1 && (
+                    <select
+                      value={selectedProyecto ?? ''}
+                      onChange={(e) => setSelectedProyecto(Number(e.target.value))}
+                      className="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50 text-sm"
+                    >
+                      {proyectos.map((p) => (
+                        <option key={p.id_proyecto} value={p.id_proyecto}>{p.titulo}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Resumen del proyecto */}
+                <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-2">
+                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Resumen del proyecto</h4>
+                  <p className="text-xs text-zinc-500 mb-2">{proyecto?.titulo ?? 'Selecciona un proyecto'}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2">
+                      <div className="text-xs text-zinc-500">Eventos</div>
+                      <div className="font-semibold text-zinc-900 dark:text-zinc-50">{eventos.length}</div>
+                    </div>
+                    <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2">
+                      <div className="text-xs text-zinc-500">Inscritos</div>
+                      <div className="font-semibold text-zinc-900 dark:text-zinc-50">{totalInscritos}</div>
+                    </div>
+                    <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2">
+                      <div className="text-xs text-zinc-500">Asistencias</div>
+                      <div className="font-semibold text-zinc-900 dark:text-zinc-50">{totalAsistencias}</div>
+                    </div>
+                    <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2">
+                      <div className="text-xs text-zinc-500">Encuestas</div>
+                      <div className="font-semibold text-zinc-900 dark:text-zinc-50">{totalEncuestas}</div>
+                    </div>
+                  </div>
+                  <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm">
+                    <div className="text-xs text-zinc-500">Satisfacción promedio</div>
+                    <div className="font-semibold text-zinc-900 dark:text-zinc-50">{promedio}/4</div>
+                  </div>
+                  {comentarios.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-xs font-medium text-zinc-500 mb-1">Comentarios:</div>
+                      <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
+                        {comentarios.map((c, i) => <li key={i}>• {c}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Redactar informe */}
+                <textarea
+                  className="w-full min-h-[160px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50"
+                  placeholder="Redacta aquí el informe de impacto del proyecto..."
+                />
+                <button className="px-4 py-2 rounded-lg bg-zinc-900 text-white text-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900">
+                  Guardar informe
+                </button>
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
