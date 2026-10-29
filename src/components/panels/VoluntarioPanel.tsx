@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAuth } from 'react-oidc-context'
+import { useRole } from '../../hooks/useRole'
+import { decodeJwt } from '../../utils/jwt'
 import { Html5Qrcode } from 'html5-qrcode'
-import { getEventos, getInscritosByEvento, registrarAsistencia, getMetricasEvento, type Evento, type MetricasEvento } from '../../lib/syncpass'
+import { getEventos, getInscritosByEvento, registrarAsistencia, getMetricasEvento, getOrCreateUsuario, type Evento, type MetricasEvento } from '../../lib/syncpass'
 
 type View = 'eventos' | 'scanner' | 'inscritos'
 
 export function VoluntarioPanel() {
+  const auth = useAuth()
+  const role = useRole()
+  const idClaims = decodeJwt(auth.user?.id_token)
+  const accessClaims = decodeJwt(auth.user?.access_token)
+  const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || 'Voluntario'
+  const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+
   const [view, setView] = useState<View>('eventos')
   const [eventos, setEventos] = useState<Evento[]>([])
   const [metricas, setMetricas] = useState<Record<number, MetricasEvento>>({})
@@ -29,6 +39,10 @@ export function VoluntarioPanel() {
     })
     return () => { mounted = false }
   }, [])
+
+  useEffect(() => {
+    if (email) getOrCreateUsuario(email, name, role)
+  }, [email, name, role])
 
   useEffect(() => {
     if (view !== 'inscritos' || !selectedEvento) return

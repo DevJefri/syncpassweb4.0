@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from 'react-oidc-context'
+import { decodeJwt } from '../../utils/jwt'
 import { DocentePanel } from './DocentePanel'
 import { VoluntarioPanel } from './VoluntarioPanel'
 import { BeneficiarioPanel } from './BeneficiarioPanel'
-import { getUsuarios, getRoles, createUsuario, updateUsuario, deleteUsuario, type Usuario } from '../../lib/syncpass'
+import { getUsuarios, getRoles, createUsuario, updateUsuario, deleteUsuario, getOrCreateUsuario, type Usuario } from '../../lib/syncpass'
 
 type Tab = 'usuarios' | 'docente' | 'voluntario' | 'beneficiario'
 
@@ -27,6 +29,16 @@ export function AdminPanel() {
   const [fCorreo, setFCorreo] = useState('')
   const [fIdRol, setFIdRol] = useState<number>(1)
   const [fEstado, setFEstado] = useState('ACTIVO')
+
+  const auth = useAuth()
+  const idClaims = decodeJwt(auth.user?.id_token)
+  const accessClaims = decodeJwt(auth.user?.access_token)
+  const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || 'Administrador'
+  const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+
+  useEffect(() => {
+    if (email) getOrCreateUsuario(email, name, 'Administrador')
+  }, [email, name])
 
   useEffect(() => {
     let mounted = true
