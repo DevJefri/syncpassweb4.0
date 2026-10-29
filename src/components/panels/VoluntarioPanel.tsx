@@ -130,8 +130,8 @@ export function VoluntarioPanel() {
                   </div>
                   {m && (
                     <div className="mt-2 flex gap-4 text-sm">
-                      <div>Asistentes: <span className="font-semibold text-green-600">{m.totalAsistencias}</span></div>
-                      <div>Faltantes: <span className="font-semibold text-amber-600">{m.totalInscritos - m.totalAsistencias}</span></div>
+                      <div className="text-slate-900 dark:text-slate-100">Asistentes: <span className="font-semibold text-green-600">{m.totalAsistencias}</span></div>
+                      <div className="text-slate-900 dark:text-slate-100">Faltantes: <span className="font-semibold text-amber-600">{m.totalInscritos - m.totalAsistencias}</span></div>
                     </div>
                   )}
                   <div className="mt-3 flex gap-2">
