@@ -57,9 +57,9 @@ export function VoluntarioPanel() {
               return list.find((i) => i.id_usuario === idUsuario)
             })())
           if (ins) {
-            const ok = await registrarAsistencia(ins.id_inscripcion)
-            setScanStatus(ok ? `✅ Asistencia registrada: ${ins.nombre}` : `❌ Error al registrar`)
-            if (ok && selectedEvento) getInscritosByEvento(selectedEvento).then(setInscritos)
+            const res = await registrarAsistencia(ins.id_inscripcion)
+            setScanStatus(res.ok ? `✅ Asistencia registrada: ${ins.nombre}` : `❌ ${res.error ?? 'Error al registrar'}`)
+            if (res.ok && selectedEvento) getInscritosByEvento(selectedEvento).then(setInscritos)
           } else {
             setScanStatus('❌ No está en la lista de inscritos')
           }

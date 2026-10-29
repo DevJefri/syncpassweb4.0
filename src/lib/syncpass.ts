@@ -240,8 +240,8 @@ export async function getInscritosByEvento(idEvento: number): Promise<{ id_inscr
   }))
 }
 
-export async function registrarAsistencia(idInscripcion: number, lat?: number, lng?: number): Promise<boolean> {
-  if (!supabase) return false
+export async function registrarAsistencia(idInscripcion: number, lat?: number, lng?: number): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Supabase no configurado' }
   const { error } = await supabase.from('asistencia').insert({
     id_inscripcion: idInscripcion,
     fecha_marcacion: new Date().toISOString(),
@@ -251,8 +251,8 @@ export async function registrarAsistencia(idInscripcion: number, lat?: number, l
     estado_sincronizacion: 'SINCRONIZADO',
     identificador_operacion: crypto.randomUUID(),
   })
-  if (error) { console.error('registrarAsistencia:', error); return false }
-  return true
+  if (error) { console.error('registrarAsistencia:', error); return { ok: false, error: error.message } }
+  return { ok: true }
 }
 export async function getMetricasEvento(idEvento: number): Promise<MetricasEvento> {
   const empty: MetricasEvento = { totalInscritos: 0, totalAsistencias: 0, porcentajeAsistencia: 0, encuestasRespondidas: 0, porcentajeEncuestas: 0, satisfaccionPromedio: 0, comentarios: [] }
