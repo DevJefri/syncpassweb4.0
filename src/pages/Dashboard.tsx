@@ -20,15 +20,15 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+      <header className="sticky top-0 z-10 bg-[#2c2d35]/70 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-orange-400 flex items-center justify-center">
               <span className="text-white font-bold text-sm">S</span>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 leading-tight">SyncPass</h1>
-              <p className="text-xs text-slate-500">{role} · {name}</p>
+              <h1 className="text-lg font-bold text-white leading-tight">SyncPass</h1>
+              <p className="text-xs text-white/50">{role} · {name}</p>
             </div>
           </div>
           <button
@@ -37,7 +37,7 @@ export function Dashboard() {
                 window.location.href = logoutUrl
               })
             }}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800 transition-colors"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors border border-white/10"
           >
             Salir
           </button>
