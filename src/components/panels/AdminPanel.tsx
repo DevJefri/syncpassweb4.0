@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from 'react-oidc-context'
+import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
 import { DocentePanel } from './DocentePanel'
 import { VoluntarioPanel } from './VoluntarioPanel'
 import { BeneficiarioPanel } from './BeneficiarioPanel'
-import { getUsuarios, getRoles, createUsuario, updateUsuario, deleteUsuario, getOrCreateUsuario, type Usuario } from '../../lib/syncpass'
+import {
+  getUsuarios, getRoles, createUsuario, updateUsuario, deleteUsuario, getOrCreateUsuario,
+  type Usuario,
+} from '../../lib/syncpassApi'
 
 type Tab = 'usuarios' | 'docente' | 'voluntario' | 'beneficiario'
 
@@ -16,6 +20,14 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export function AdminPanel() {
+  const auth = useAuth()
+  const role = useRole()
+  const idClaims = decodeJwt(auth.user?.id_token)
+  const accessClaims = decodeJwt(auth.user?.access_token)
+  const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || 'Administrador'
+  const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+  const token = auth.user?.access_token
+
   const [tab, setTab] = useState<Tab>('usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [roles, setRoles] = useState<{ id_rol: number; nombre: string }[]>([])
@@ -23,37 +35,27 @@ export function AdminPanel() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
-  // form create/edit
   const [fNombreUsuario, setFNombreUsuario] = useState('')
   const [fNombreMostrar, setFNombreMostrar] = useState('')
   const [fCorreo, setFCorreo] = useState('')
   const [fIdRol, setFIdRol] = useState<number>(1)
   const [fEstado, setFEstado] = useState('ACTIVO')
 
-  const auth = useAuth()
-  const idClaims = decodeJwt(auth.user?.id_token)
-  const accessClaims = decodeJwt(auth.user?.access_token)
-  const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || 'Administrador'
-  const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
-
-  useEffect(() => {
-    if (email) getOrCreateUsuario(email, name, 'Administrador')
-  }, [email, name])
-
   useEffect(() => {
     let mounted = true
     async function load() {
-      setLoading(true)
-      const [us, rs] = await Promise.all([getUsuarios(), getRoles()])
+      if (!token) { setLoading(false); return }
+      await getOrCreateUsuario(token, email, name, role)
+      const [us, rs] = await Promise.all([getUsuarios(token), getRoles(token)])
       if (mounted) {
         setUsuarios(us)
         setRoles(rs.map((r: any) => ({ id_rol: r.id_rol, nombre: r.nombre })))
         setLoading(false)
       }
     }
-    load()
+    if (email && token) load()
     return () => { mounted = false }
-  }, [])
+  }, [email, name, role, token])
 
   const resetForm = () => {
     setFNombreUsuario(''); setFNombreMostrar(''); setFCorreo(''); setFIdRol(roles[0]?.id_rol ?? 1); setFEstado('ACTIVO'); setEditingId(null); setShowCreate(false)
@@ -70,8 +72,9 @@ export function AdminPanel() {
   }
 
   const handleSave = async () => {
+    if (!token) return
     if (editingId) {
-      const updated = await updateUsuario(editingId, {
+      const updated = await updateUsuario(token, editingId, {
         nombre_usuario: fNombreUsuario,
         nombre_mostrar: fNombreMostrar,
         correo: fCorreo,
@@ -83,7 +86,7 @@ export function AdminPanel() {
         resetForm()
       }
     } else {
-      const created = await createUsuario({
+      const created = await createUsuario(token, {
         id_rol: fIdRol,
         nombre_usuario: fNombreUsuario,
         nombre_mostrar: fNombreMostrar,
@@ -98,8 +101,8 @@ export function AdminPanel() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este usuario?')) return
-    const ok = await deleteUsuario(id)
+    if (!token || !confirm('¿Eliminar este usuario?')) return
+    const ok = await deleteUsuario(token, id)
     if (ok) setUsuarios((prev) => prev.filter((u) => u.id_usuario !== id))
   }
 
@@ -189,7 +192,7 @@ export function AdminPanel() {
                         <td className="py-2 text-slate-900 dark:text-slate-100">{u.nombre_usuario}</td>
                         <td className="py-2 text-slate-600 dark:text-slate-300">{u.nombre_mostrar}</td>
                         <td className="py-2 text-slate-600 dark:text-slate-300">{u.correo}</td>
-                        <td className="py-2 text-slate-900 dark:text-slate-100 font-medium">{u.rol_nombre ?? u.id_rol}</td>
+                        <td className="py-2 text-slate-900 dark:text-slate-100 font-medium">{u.rol_nombre ?? u.rol?.nombre ?? u.id_rol}</td>
                         <td className="py-2">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${u.estado === 'ACTIVO' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
                             {u.estado}

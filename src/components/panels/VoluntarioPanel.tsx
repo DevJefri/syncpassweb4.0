@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Html5Qrcode } from 'html5-qrcode'
-import { getEventos, getInscritosByEvento, registrarAsistencia, getMetricasEvento, getOrCreateUsuario, type Evento, type MetricasEvento } from '../../lib/syncpass'
 import { useAuth } from 'react-oidc-context'
 import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
+import { Html5Qrcode } from 'html5-qrcode'
+import {
+  getEventos, getInscripcionesByEvento, registrarAsistencia, getMetricasEvento, getOrCreateUsuario,
+  type Evento, type MetricasEvento, type Inscripcion,
+} from '../../lib/syncpassApi'
 
 type View = 'eventos' | 'scanner' | 'inscritos'
 
@@ -14,12 +17,13 @@ export function VoluntarioPanel() {
   const accessClaims = decodeJwt(auth.user?.access_token)
   const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || 'Voluntario'
   const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+  const token = auth.user?.access_token
 
   const [view, setView] = useState<View>('eventos')
   const [eventos, setEventos] = useState<Evento[]>([])
   const [metricas, setMetricas] = useState<Record<number, MetricasEvento>>({})
   const [selectedEvento, setSelectedEvento] = useState<number | null>(null)
-  const [inscritos, setInscritos] = useState<{ id_inscripcion: number; id_usuario: number; id_evento: number; nombre: string; correo: string; estado: string; asistio: boolean }[]>([])
+  const [inscritos, setInscritos] = useState<Inscripcion[]>([])
   const [loading, setLoading] = useState(true)
   const [scanResult, setScanResult] = useState<string>('')
   const [scanStatus, setScanStatus] = useState<string>('')
@@ -30,26 +34,28 @@ export function VoluntarioPanel() {
 
   useEffect(() => {
     let mounted = true
-    getEventos().then(async (evs) => {
+    async function load() {
+      if (!token) { setLoading(false); return }
+      await getOrCreateUsuario(token, email, name, role)
+      const evs = await getEventos(token)
       const m: Record<number, MetricasEvento> = {}
-      for (const e of evs) m[e.id_evento] = await getMetricasEvento(e.id_evento)
+      await Promise.all(evs.map(async (e) => {
+        m[e.id_evento] = await getMetricasEvento(token, e.id_evento)
+      }))
       if (mounted) {
         setEventos(evs)
         setMetricas(m)
         setLoading(false)
       }
-    })
+    }
+    if (email && token) load()
     return () => { mounted = false }
-  }, [])
+  }, [email, name, role, token])
 
   useEffect(() => {
-    if (email) getOrCreateUsuario(email, name, role)
-  }, [email, name, role])
-
-  useEffect(() => {
-    if (view !== 'inscritos' || !selectedEvento) return
-    getInscritosByEvento(selectedEvento).then(setInscritos)
-  }, [view, selectedEvento])
+    if (view !== 'inscritos' || !selectedEvento || !token) return
+    getInscripcionesByEvento(token, selectedEvento).then(setInscritos)
+  }, [view, selectedEvento, token])
 
   useEffect(() => {
     if (view !== 'scanner') {
@@ -59,7 +65,6 @@ export function VoluntarioPanel() {
       }
       return
     }
-
     const scanner = new Html5Qrcode(scannerDivId)
     scannerRef.current = scanner
     scanner.start(
@@ -77,18 +82,18 @@ export function VoluntarioPanel() {
           }
           const ins = inscritos.find((i) => i.id_usuario === idUsuario)
             || (await (async () => {
-              const list = await getInscritosByEvento(idEvento)
+              const list = await getInscripcionesByEvento(token!, idEvento)
               return list.find((i) => i.id_usuario === idUsuario)
             })())
           if (ins) {
-            const res = await registrarAsistencia(ins.id_inscripcion)
+            const res = await registrarAsistencia(token!, ins.id_inscripcion)
             const yaRegistrada = !res.ok && (res.error ?? '').toLowerCase().includes('duplicate')
             if (res.ok || yaRegistrada) {
               setScanSuccess(true)
-              setScanStatus(`✅ Asistencia confirmada\nBeneficiario: ${ins.nombre}\nCorreo: ${ins.correo}\nEstado: ${ins.estado}`)
+              setScanStatus(`✅ Asistencia confirmada\nBeneficiario: ${ins.usuario?.nombre_mostrar ?? '-'}\nCorreo: ${ins.usuario?.correo ?? '-'}\nEstado: ${ins.estado}`)
               if (selectedEvento) {
-                getInscritosByEvento(selectedEvento).then(setInscritos)
-                getMetricasEvento(selectedEvento).then((m) => setMetricas((prev) => ({ ...prev, [selectedEvento]: m })))
+                getInscripcionesByEvento(token!, selectedEvento).then(setInscritos)
+                getMetricasEvento(token!, selectedEvento).then((m) => setMetricas((prev) => ({ ...prev, [selectedEvento]: m })))
               }
               if (scannerRef.current) {
                 scannerRef.current.stop().catch(() => {})
@@ -208,24 +213,27 @@ export function VoluntarioPanel() {
               <button onClick={() => setView('eventos')} className="text-sm text-zinc-500 hover:text-zinc-700">← Volver</button>
             </div>
             <button
-              onClick={() => getInscritosByEvento(selectedEv.id_evento).then(setInscritos)}
+              onClick={() => getInscripcionesByEvento(token!, selectedEv.id_evento).then(setInscritos)}
               className="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-sm"
             >
               Actualizar
             </button>
             <div className="space-y-2">
               {inscritos.length === 0 && <p className="text-zinc-500 text-sm">Sin inscritos.</p>}
-              {inscritos.map((i) => (
-                <div key={i.id_inscripcion} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{i.nombre}</div>
-                    <div className="text-xs text-zinc-500">{i.correo} · {i.estado}</div>
-                  </div>
-                    <span className={"text-xs px-2 py-0.5 rounded-full " + (i.asistio ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400")}>
-                      {i.asistio ? "Presente" : "Pendiente"}
+              {inscritos.map((i) => {
+                const asistio = !!i.asistencia && i.asistencia.estado_validacion === 'VALIDADA'
+                return (
+                  <div key={i.id_inscripcion} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{i.usuario?.nombre_mostrar ?? '-'}</div>
+                      <div className="text-xs text-zinc-500">{i.usuario?.correo ?? '-'} · {i.estado}</div>
+                    </div>
+                    <span className={"text-xs px-2 py-0.5 rounded-full " + (asistio ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400")}>
+                      {asistio ? "Presente" : "Pendiente"}
                     </span>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

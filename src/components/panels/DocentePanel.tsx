@@ -4,21 +4,10 @@ import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
 import { QRCodeSVG } from 'qrcode.react'
 import {
-  getOrCreateUsuario,
-  getProyectosByCoordinador,
-  createProyecto,
-  updateProyecto,
-  deleteProyecto,
-  getEventosByProyecto,
-  createEvento,
-  updateEvento,
-  deleteEvento,
-  getMetricasEvento,
-  type Proyecto,
-  type Evento,
-  type MetricasEvento,
-  type Usuario,
-} from '../../lib/syncpass'
+  getOrCreateUsuario, getProyectosByCoordinador, createProyecto, updateProyecto, deleteProyecto,
+  getEventosByProyecto, createEvento, updateEvento, deleteEvento, getMetricasEvento,
+  type Proyecto, type Evento, type MetricasEvento, type Usuario,
+} from '../../lib/syncpassApi'
 
 type Tab = 'proyectos' | 'eventos' | 'informes'
 
@@ -35,6 +24,7 @@ export function DocentePanel() {
   const accessClaims = decodeJwt(auth.user?.access_token)
   const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || 'Docente'
   const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+  const token = auth.user?.access_token
 
   const [tab, setTab] = useState<Tab>('proyectos')
   const [usuario, setUsuario] = useState<Usuario | null>(null)
@@ -49,6 +39,16 @@ export function DocentePanel() {
   const [descripcion, setDescripcion] = useState('')
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaTermino, setFechaTermino] = useState('')
+  const [showCreateProyecto, setShowCreateProyecto] = useState(false)
+
+  // edición proyecto
+  const [editingProyecto, setEditingProyecto] = useState<number | null>(null)
+  const [editPTitulo, setEditPTitulo] = useState('')
+  const [editPDesc, setEditPDesc] = useState('')
+  const [editPInicio, setEditPInicio] = useState('')
+  const [editPTermino, setEditPTermino] = useState('')
+  const [editPEstado, setEditPEstado] = useState('PLANIFICADO')
+
   // form evento
   const [evNombre, setEvNombre] = useState('')
   const [evDescripcion, setEvDescripcion] = useState('')
@@ -56,17 +56,7 @@ export function DocentePanel() {
   const [evTermino, setEvTermino] = useState('')
   const [evCupos, setEvCupos] = useState(25)
   const [evRecinto, setEvRecinto] = useState('')
-  const [qrEvento, setQrEvento] = useState<number | null>(null)
-
-  // edición proyecto
-  const [showCreateProyecto, setShowCreateProyecto] = useState(false)
   const [showCreateEvento, setShowCreateEvento] = useState(false)
-  const [editingProyecto, setEditingProyecto] = useState<number | null>(null)
-  const [editPTitulo, setEditPTitulo] = useState('')
-  const [editPDesc, setEditPDesc] = useState('')
-  const [editPInicio, setEditPInicio] = useState('')
-  const [editPTermino, setEditPTermino] = useState('')
-  const [editPEstado, setEditPEstado] = useState('PLANIFICADO')
 
   // edición evento
   const [editingEvento, setEditingEvento] = useState<number | null>(null)
@@ -78,14 +68,17 @@ export function DocentePanel() {
   const [editERecinto, setEditERecinto] = useState('')
   const [editEEstado, setEditEEstado] = useState('PROGRAMADO')
 
+  const [qrEvento, setQrEvento] = useState<number | null>(null)
+
   useEffect(() => {
     let mounted = true
     async function load() {
       setLoading(true)
-      const u = await getOrCreateUsuario(email, name, role)
+      if (!token) { setLoading(false); return }
+      const u = await getOrCreateUsuario(token, email, name, role)
       if (mounted) setUsuario(u)
       if (u) {
-        const ps = await getProyectosByCoordinador(u.id_usuario)
+        const ps = await getProyectosByCoordinador(token, u.id_usuario)
         if (mounted) {
           setProyectos(ps)
           if (ps.length) setSelectedProyecto(ps[0].id_proyecto)
@@ -93,36 +86,37 @@ export function DocentePanel() {
       }
       if (mounted) setLoading(false)
     }
-    if (email) load()
+    if (email && token) load()
     return () => { mounted = false }
-  }, [email, name, role])
+  }, [email, name, role, token])
 
   useEffect(() => {
-    if (!selectedProyecto) return
+    if (!selectedProyecto || !token) return
     let mounted = true
     async function load() {
-      const evs = await getEventosByProyecto(selectedProyecto!)
+      const evs = await getEventosByProyecto(token!, selectedProyecto!)
       if (mounted) setEventos(evs)
       const m: Record<number, MetricasEvento> = {}
-      for (const e of evs) m[e.id_evento] = await getMetricasEvento(e.id_evento)
+      await Promise.all(evs.map(async (e) => {
+        m[e.id_evento] = await getMetricasEvento(token!, e.id_evento)
+      }))
       if (mounted) setMetricas(m)
     }
     load()
     return () => { mounted = false }
-  }, [selectedProyecto])
+  }, [selectedProyecto, token])
 
   const handleCreateProyecto = async () => {
-    if (!usuario || !titulo || !fechaInicio || !fechaTermino) return
-    const p = await createProyecto({
-      id_coordinador: usuario.id_usuario,
-      id_unidad: 1,
-      id_area: 1,
+    if (!usuario || !token || !titulo || !fechaInicio || !fechaTermino) return
+    const p = await createProyecto(token, {
       titulo,
       descripcion: descripcion || null,
       fecha_inicio: fechaInicio,
       fecha_termino: fechaTermino,
       estado: 'PLANIFICADO',
-    })
+      id_unidad: 1,
+      id_area: 1,
+    }, usuario.id_usuario)
     if (p) {
       setProyectos((prev) => [p, ...prev])
       setSelectedProyecto(p.id_proyecto)
@@ -132,8 +126,8 @@ export function DocentePanel() {
   }
 
   const handleCreateEvento = async () => {
-    if (!selectedProyecto || !evNombre || !evInicio || !evTermino) return
-    const e = await createEvento({
+    if (!selectedProyecto || !token || !evNombre || !evInicio || !evTermino) return
+    const e = await createEvento(token, {
       id_proyecto: selectedProyecto,
       nombre: evNombre,
       descripcion: evDescripcion || null,
@@ -155,7 +149,7 @@ export function DocentePanel() {
     }
   }
 
-  const startEditProyecto = (p: any) => {
+  const startEditProyecto = (p: Proyecto) => {
     setEditingProyecto(p.id_proyecto)
     setEditPTitulo(p.titulo)
     setEditPDesc(p.descripcion || '')
@@ -165,7 +159,7 @@ export function DocentePanel() {
   }
 
   const saveEditProyecto = async (id: number) => {
-    const updated = await updateProyecto(id, {
+    const updated = await updateProyecto(token!, id, {
       titulo: editPTitulo,
       descripcion: editPDesc || null,
       fecha_inicio: editPInicio,
@@ -178,7 +172,7 @@ export function DocentePanel() {
     }
   }
 
-  const startEditEvento = (e: any) => {
+  const startEditEvento = (e: Evento) => {
     setEditingEvento(e.id_evento)
     setEditENombre(e.nombre)
     setEditEDesc(e.descripcion || '')
@@ -190,7 +184,7 @@ export function DocentePanel() {
   }
 
   const saveEditEvento = async (id: number) => {
-    const updated = await updateEvento(id, {
+    const updated = await updateEvento(token!, id, {
       nombre: editENombre,
       descripcion: editEDesc || null,
       fecha_inicio: editEInicio,
@@ -259,7 +253,6 @@ export function DocentePanel() {
                 </div>
               )}
 
-              {/* Boxes de proyectos */}
               <div className="grid gap-3">
                 {proyectos.length === 0 && <p className="text-zinc-500 text-sm">No tienes proyectos aún. Crea el primero.</p>}
                 {proyectos.map((p) => (
@@ -308,7 +301,7 @@ export function DocentePanel() {
                           <button
                             onClick={async () => {
                               if (!confirm('¿Eliminar este proyecto y sus eventos?')) return
-                              const ok = await deleteProyecto(p.id_proyecto)
+                              const ok = await deleteProyecto(token!, p.id_proyecto)
                               if (ok) setProyectos((prev) => prev.filter((x) => x.id_proyecto !== p.id_proyecto))
                             }}
                             className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700"
@@ -355,7 +348,6 @@ export function DocentePanel() {
                 </div>
               )}
 
-              {/* Lista de eventos con métricas */}
               <div className="space-y-3">
                 {eventos.length === 0 && <p className="text-zinc-500 text-sm">No hay eventos en este proyecto.</p>}
                 {eventos.map((e) => {
@@ -436,7 +428,7 @@ export function DocentePanel() {
                         <button
                           onClick={async () => {
                             if (!confirm('¿Eliminar este evento?')) return
-                            const ok = await deleteEvento(e.id_evento)
+                            const ok = await deleteEvento(token!, e.id_evento)
                             if (ok) setEventos((prev) => prev.filter((x) => x.id_evento !== e.id_evento))
                           }}
                           className="text-xs px-2 py-1 rounded-md bg-red-600 text-white hover:bg-red-700"
@@ -486,7 +478,6 @@ export function DocentePanel() {
                   )}
                 </div>
 
-                {/* Resumen del proyecto */}
                 <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-2">
                   <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Resumen del proyecto</h4>
                   <p className="text-xs text-zinc-500 mb-2">{proyecto?.titulo ?? 'Selecciona un proyecto'}</p>
@@ -522,7 +513,6 @@ export function DocentePanel() {
                   )}
                 </div>
 
-                {/* Redactar informe */}
                 <textarea
                   className="w-full min-h-[160px] px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-50"
                   placeholder="Redacta aquí el informe de impacto del proyecto..."
