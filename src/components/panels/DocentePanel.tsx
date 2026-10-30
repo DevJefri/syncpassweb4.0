@@ -97,7 +97,9 @@ export function DocentePanel() {
       const evs = await getEventosByProyecto(token!, selectedProyecto!)
       if (mounted) setEventos(evs)
       const m: Record<number, MetricasEvento> = {}
-      for (const e of evs) m[e.id_evento] = await getMetricasEvento(token!, e.id_evento)
+      await Promise.all(evs.map(async (e) => {
+        m[e.id_evento] = await getMetricasEvento(token!, e.id_evento)
+      }))
       if (mounted) setMetricas(m)
     }
     load()
