@@ -3,7 +3,7 @@ import { useAuth } from 'react-oidc-context'
 import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
 import { QRCodeSVG } from 'qrcode.react'
-import { getOrCreateUsuario, getEventos, getInscripciones, inscribirse, desinscribirse, registrarEncuesta, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpass'
+import { getOrCreateUsuario, getEventos, getInscripcionesByUsuario, inscribirse, desinscribirse, registrarEncuesta, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpassApi'
 
 export function BeneficiarioPanel() {
   const auth = useAuth()
@@ -22,14 +22,15 @@ export function BeneficiarioPanel() {
   const accessClaims = decodeJwt(auth.user?.access_token)
   const name = idClaims?.['given_name'] || idClaims?.['name'] || idClaims?.['preferred_username'] || '-'
   const email = idClaims?.['email'] || accessClaims?.['email'] || auth.user?.profile?.email || ''
+  const token = auth.user?.access_token
 
   useEffect(() => {
     let mounted = true
     async function load() {
       setLoading(true)
-      const u = await getOrCreateUsuario(email, name, role)
-      const evs = await getEventos()
-      const ins = u ? await getInscripciones(u.id_usuario) : []
+      const u = await getOrCreateUsuario(token!, email, name, role)
+      const evs = await getEventos(token!)
+      const ins = u ? await getInscripcionesByUsuario(token!, u.id_usuario) : []
       if (mounted) {
         setUsuario(u)
         setEventos(evs)
@@ -45,7 +46,7 @@ export function BeneficiarioPanel() {
 
   const handleInscribir = async (idEvento: number) => {
     if (!usuario) return
-    const ins = await inscribirse(usuario.id_usuario, idEvento)
+    const ins = await inscribirse(token!, usuario.id_usuario, idEvento)
     if (ins) {
       setInscripciones((prev) => {
         const exists = prev.some((i) => i.id_evento === idEvento)
@@ -71,7 +72,7 @@ export function BeneficiarioPanel() {
 
   const handleDesinscribir = async (idEvento: number) => {
     if (!usuario) return
-    const ok = await desinscribirse(usuario.id_usuario, idEvento)
+    const ok = await desinscribirse(token!, usuario.id_usuario, idEvento)
     if (ok) {
       setInscripciones((prev) =>
         prev.map((i) => (i.id_evento === idEvento ? { ...i, estado: 'CANCELADO' } : i)),
@@ -82,7 +83,7 @@ export function BeneficiarioPanel() {
   const handleEnviarEncuesta = async (idEvento: number) => {
     const ins = inscripciones.find((i) => i.id_evento === idEvento)
     if (!ins) return
-    const ok = await registrarEncuesta(ins.id_inscripcion, calificacion, 'MUY_UTIL', comentarios)
+    const ok = await registrarEncuesta(token!, ins.id_inscripcion, calificacion, 'MUY_UTIL', comentarios)
     if (ok) {
       setInscripciones((prev) =>
         prev.map((i) =>
