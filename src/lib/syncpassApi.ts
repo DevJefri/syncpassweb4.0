@@ -169,11 +169,17 @@ export async function getEventosByProyecto(token: string, idProyecto: number): P
 }
 
 export async function createEvento(token: string, e: Partial<Evento>): Promise<Evento | null> {
-  return apiFetch<Evento>('/supabase/eventos', token, { method: 'POST', body: JSON.stringify(e) })
+  const body = { ...e }
+  if (body.fecha_inicio && !body.fecha_inicio.includes(':00', 16)) body.fecha_inicio = body.fecha_inicio + ':00'
+  if (body.fecha_termino && !body.fecha_termino.includes(':00', 16)) body.fecha_termino = body.fecha_termino + ':00'
+  return apiFetch<Evento>('/supabase/eventos', token, { method: 'POST', body: JSON.stringify(body) })
 }
 
 export async function updateEvento(token: string, id: number, e: Partial<Evento>): Promise<Evento | null> {
-  return apiFetch<Evento>(`/supabase/eventos/${id}`, token, { method: 'PUT', body: JSON.stringify(e) })
+  const body = { ...e }
+  if (body.fecha_inicio && !body.fecha_inicio.includes(':00', 16)) body.fecha_inicio = body.fecha_inicio + ':00'
+  if (body.fecha_termino && !body.fecha_termino.includes(':00', 16)) body.fecha_termino = body.fecha_termino + ':00'
+  return apiFetch<Evento>(`/supabase/eventos/${id}`, token, { method: 'PUT', body: JSON.stringify(body) })
 }
 
 export async function deleteEvento(token: string, id: number): Promise<boolean> {
