@@ -39,7 +39,9 @@ export function VoluntarioPanel() {
       await getOrCreateUsuario(token, email, name, role)
       const evs = await getEventos(token)
       const m: Record<number, MetricasEvento> = {}
-      for (const e of evs) m[e.id_evento] = await getMetricasEvento(token, e.id_evento)
+      await Promise.all(evs.map(async (e) => {
+        m[e.id_evento] = await getMetricasEvento(token, e.id_evento)
+      }))
       if (mounted) {
         setEventos(evs)
         setMetricas(m)
