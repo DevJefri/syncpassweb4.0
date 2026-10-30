@@ -32,6 +32,7 @@ export function AdminPanel() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [roles, setRoles] = useState<{ id_rol: number; nombre: string }[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
@@ -45,12 +46,18 @@ export function AdminPanel() {
     let mounted = true
     async function load() {
       if (!token) { setLoading(false); return }
-      await getOrCreateUsuario(token, email, name, role)
-      const [us, rs] = await Promise.all([getUsuarios(token), getRoles(token)])
-      if (mounted) {
-        setUsuarios(us)
-        setRoles(rs.map((r: any) => ({ id_rol: r.id_rol, nombre: r.nombre })))
-        setLoading(false)
+      setError(null)
+      try {
+        await getOrCreateUsuario(token, email, name, role)
+        const [us, rs] = await Promise.all([getUsuarios(token), getRoles(token)])
+        if (mounted) {
+          setUsuarios(us)
+          setRoles(rs.map((r: any) => ({ id_rol: r.id_rol, nombre: r.nombre })))
+        }
+      } catch (e) {
+        if (mounted) setError((e as Error).message)
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
     if (email && token) load()
@@ -132,6 +139,7 @@ export function AdminPanel() {
 
         <div className="px-6 py-5">
           {loading && tab === 'usuarios' && <p className="text-zinc-500 text-sm">Cargando...</p>}
+          {error && tab === 'usuarios' && <p className="text-red-500 text-sm">Error al cargar datos: {error}</p>}
 
           {!loading && tab === 'usuarios' && (
             <div className="space-y-4">

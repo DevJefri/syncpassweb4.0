@@ -17,6 +17,7 @@ export function BeneficiarioPanel() {
   const [encuestaEvento, setEncuestaEvento] = useState<number | null>(null)
   const [calificacion, setCalificacion] = useState(4)
   const [comentarios, setComentarios] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const idClaims = decodeJwt(auth.user?.id_token)
   const accessClaims = decodeJwt(auth.user?.access_token)
@@ -28,14 +29,20 @@ export function BeneficiarioPanel() {
     let mounted = true
     async function load() {
       setLoading(true)
-      const u = await getOrCreateUsuario(token!, email, name, role)
-      const evs = await getEventos(token!)
-      const ins = u ? await getInscripcionesByUsuario(token!, u.id_usuario) : []
-      if (mounted) {
-        setUsuario(u)
-        setEventos(evs)
-        setInscripciones(ins)
-        setLoading(false)
+      setError(null)
+      try {
+        const u = await getOrCreateUsuario(token!, email, name, role)
+        const evs = await getEventos(token!)
+        const ins = u ? await getInscripcionesByUsuario(token!, u.id_usuario) : []
+        if (mounted) {
+          setUsuario(u)
+          setEventos(evs)
+          setInscripciones(ins)
+        }
+      } catch (e) {
+        if (mounted) setError((e as Error).message)
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
     if (email) load()
@@ -129,6 +136,7 @@ export function BeneficiarioPanel() {
 
         <div className="px-6 py-5">
           {loading && <p className="text-zinc-500 text-sm">Cargando...</p>}
+          {error && <p className="text-red-500 text-sm">Error al cargar datos: {error}</p>}
 
           {!loading && tab === 'info' && (
             <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300">

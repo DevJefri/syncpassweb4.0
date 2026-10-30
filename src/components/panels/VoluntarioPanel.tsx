@@ -25,6 +25,7 @@ export function VoluntarioPanel() {
   const [selectedEvento, setSelectedEvento] = useState<number | null>(null)
   const [inscritos, setInscritos] = useState<Inscripcion[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [scanResult, setScanResult] = useState<string>('')
   const [scanStatus, setScanStatus] = useState<string>('')
   const [scanSuccess, setScanSuccess] = useState(false)
@@ -36,16 +37,22 @@ export function VoluntarioPanel() {
     let mounted = true
     async function load() {
       if (!token) { setLoading(false); return }
-      await getOrCreateUsuario(token, email, name, role)
-      const evs = await getEventos(token)
-      const m: Record<number, MetricasEvento> = {}
-      await Promise.all(evs.map(async (e) => {
-        m[e.id_evento] = await getMetricasEvento(token, e.id_evento)
-      }))
-      if (mounted) {
-        setEventos(evs)
-        setMetricas(m)
-        setLoading(false)
+      setError(null)
+      try {
+        await getOrCreateUsuario(token, email, name, role)
+        const evs = await getEventos(token)
+        const m: Record<number, MetricasEvento> = {}
+        await Promise.all(evs.map(async (e) => {
+          m[e.id_evento] = await getMetricasEvento(token, e.id_evento)
+        }))
+        if (mounted) {
+          setEventos(evs)
+          setMetricas(m)
+        }
+      } catch (e) {
+        if (mounted) setError((e as Error).message)
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
     if (email && token) load()
@@ -144,6 +151,7 @@ export function VoluntarioPanel() {
         {view === 'eventos' && (
           <div className="px-6 py-5 space-y-3">
             {loading && <p className="text-zinc-500 text-sm">Cargando...</p>}
+            {error && <p className="text-red-500 text-sm">Error al cargar datos: {error}</p>}
             {!loading && eventos.length === 0 && <p className="text-zinc-500 text-sm">No hay eventos.</p>}
             {eventos.map((e) => {
               const m = metricas[e.id_evento]

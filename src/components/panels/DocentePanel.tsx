@@ -33,6 +33,7 @@ export function DocentePanel() {
   const [eventos, setEventos] = useState<Evento[]>([])
   const [metricas, setMetricas] = useState<Record<number, MetricasEvento>>({})
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // form proyecto
   const [titulo, setTitulo] = useState('')
@@ -74,17 +75,23 @@ export function DocentePanel() {
     let mounted = true
     async function load() {
       setLoading(true)
+      setError(null)
       if (!token) { setLoading(false); return }
-      const u = await getOrCreateUsuario(token, email, name, role)
-      if (mounted) setUsuario(u)
-      if (u) {
-        const ps = await getProyectosByCoordinador(token, u.id_usuario)
-        if (mounted) {
-          setProyectos(ps)
-          if (ps.length) setSelectedProyecto(ps[0].id_proyecto)
+      try {
+        const u = await getOrCreateUsuario(token, email, name, role)
+        if (mounted) setUsuario(u)
+        if (u) {
+          const ps = await getProyectosByCoordinador(token, u.id_usuario)
+          if (mounted) {
+            setProyectos(ps)
+            if (ps.length) setSelectedProyecto(ps[0].id_proyecto)
+          }
         }
+      } catch (e) {
+        if (mounted) setError((e as Error).message)
+      } finally {
+        if (mounted) setLoading(false)
       }
-      if (mounted) setLoading(false)
     }
     if (email && token) load()
     return () => { mounted = false }
@@ -225,6 +232,7 @@ export function DocentePanel() {
 
         <div className="px-6 py-5">
           {loading && <p className="text-zinc-500 text-sm">Cargando...</p>}
+          {error && <p className="text-red-500 text-sm">Error al cargar datos: {error}</p>}
 
           {!loading && tab === 'proyectos' && (
             <div className="space-y-4">
