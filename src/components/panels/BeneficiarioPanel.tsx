@@ -3,7 +3,19 @@ import { useAuth } from 'react-oidc-context'
 import { useRole } from '../../hooks/useRole'
 import { decodeJwt } from '../../utils/jwt'
 import { QRCodeSVG } from 'qrcode.react'
-import { getOrCreateUsuario, getEventos, getInscripcionesByUsuario, inscribirse, desinscribirse, registrarEncuesta, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpassApi'
+import { getOrCreateUsuario, getEventos, getInscripcionesByUsuario, getAsistenciasByEvento, inscribirse, desinscribirse, registrarEncuesta, type Evento, type Inscripcion, type Usuario } from '../../lib/syncpassApi'
+
+function AsistenciaConfirmada() {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900/40 dark:bg-green-900/20">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-500 text-white font-bold">✓</div>
+      <div>
+        <p className="text-sm font-semibold text-green-700 dark:text-green-400">Asistencia confirmada</p>
+        <p className="text-xs text-green-600 dark:text-green-500">Tu asistencia fue registrada. ¡Gracias por participar!</p>
+      </div>
+    </div>
+  )
+}
 
 export function BeneficiarioPanel() {
   const auth = useAuth()
@@ -12,6 +24,7 @@ export function BeneficiarioPanel() {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [eventos, setEventos] = useState<Evento[]>([])
   const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
+  const [asistidos, setAsistidos] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [qrEvento, setQrEvento] = useState<number | null>(null)
   const [encuestaEvento, setEncuestaEvento] = useState<number | null>(null)
@@ -34,10 +47,17 @@ export function BeneficiarioPanel() {
         const u = await getOrCreateUsuario(token!, email, name, role)
         const evs = await getEventos(token!)
         const ins = u ? await getInscripcionesByUsuario(token!, u.id_usuario) : []
+        const idsEvento = [...new Set(ins.map((i) => i.id_evento))]
+        const asistencias = (await Promise.all(idsEvento.map((id) => getAsistenciasByEvento(token!, id).catch(() => []))))
+          .flat()
+        const validados = asistencias
+          .filter((a) => a.estado_validacion === 'VALIDADA')
+          .map((a) => a.id_inscripcion)
         if (mounted) {
           setUsuario(u)
           setEventos(evs)
           setInscripciones(ins)
+          setAsistidos(validados)
         }
       } catch (e) {
         if (mounted) setError((e as Error).message)
@@ -67,10 +87,8 @@ export function BeneficiarioPanel() {
     }
   }
 
-  const tieneAsistencia = (idEvento: number) => {
-    const ins = inscripciones.find((i) => i.id_evento === idEvento)
-    return !!ins?.asistencia && ins.asistencia.estado_validacion === 'VALIDADA'
-  }
+  const tieneAsistencia = (idEvento: number) =>
+    inscripciones.some((i) => i.id_evento === idEvento && asistidos.includes(i.id_inscripcion))
 
   const yaRespondioEncuesta = (idEvento: number) => {
     const ins = inscripciones.find((i) => i.id_evento === idEvento)
@@ -188,6 +206,7 @@ export function BeneficiarioPanel() {
                       )}
                       {estaInscrito(e.id_evento) && tieneAsistencia(e.id_evento) && (
                         <div className="w-full mt-2 space-y-2">
+                          <AsistenciaConfirmada />
                           {yaRespondioEncuesta(e.id_evento) ? (
                             <p className="text-sm text-green-600">Encuesta enviada: {inscripciones.find((i) => i.id_evento === e.id_evento)?.encuesta?.calificacion}/4 ⭐</p>
                           ) : (
@@ -254,14 +273,20 @@ export function BeneficiarioPanel() {
                     <div key={ins.id_inscripcion} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center">
                       <p className="text-zinc-900 dark:text-zinc-50 font-medium mb-1">{ev?.nombre ?? `Evento #${ins.id_evento}`}</p>
                       <p className="text-xs text-zinc-500 mb-4">{ev ? new Date(ev.fecha_inicio).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''} · {ev?.recinto ?? ''}</p>
-                      {usuario ? (
-                        <div className="mx-auto inline-block p-3 bg-white rounded-lg">
-                          <QRCodeSVG value={`syncpass:asistencia:${usuario.id_usuario}:${ins.id_evento}`} size={160} level="M" />
-                        </div>
+                      {tieneAsistencia(ins.id_evento) ? (
+                        <AsistenciaConfirmada />
                       ) : (
-                        <p className="text-zinc-500 text-sm">Cargando usuario...</p>
+                        <>
+                          {usuario ? (
+                            <div className="mx-auto inline-block p-3 bg-white rounded-lg">
+                              <QRCodeSVG value={`syncpass:asistencia:${usuario.id_usuario}:${ins.id_evento}`} size={160} level="M" />
+                            </div>
+                          ) : (
+                            <p className="text-zinc-500 text-sm">Cargando usuario...</p>
+                          )}
+                          <p className="text-xs text-zinc-400 mt-3">Muestra este código al ingresar al evento.</p>
+                        </>
                       )}
-                      <p className="text-xs text-zinc-400 mt-3">Muestra este código al ingresar al evento.</p>
                     </div>
                   )
                 })
