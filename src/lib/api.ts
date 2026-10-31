@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://qap5hv2lia.execute-api.us-east-1.amazonaws.com/api'
 
 export function getApiUrl(): string {
   return API_URL.replace(/\/$/, '')
