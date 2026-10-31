@@ -243,7 +243,7 @@ export async function registrarEncuesta(token: string, idInscripcion: number, ca
   try {
     await apiFetch('/supabase/encuestas', token, {
       method: 'POST',
-      body: JSON.stringify({ idInscripcion, calificacion, utilidad, comentarios: comentarios || null }),
+      body: JSON.stringify({ id_inscripcion: idInscripcion, calificacion, utilidad, comentarios: comentarios || null }),
     })
     return true
   } catch { return false }
