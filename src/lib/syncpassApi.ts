@@ -187,19 +187,30 @@ export async function deleteEvento(token: string, id: number): Promise<boolean> 
 }
 
 // ---- Inscripciones ----
+function normalizarInscripcion(i: any): Inscripcion {
+  return {
+    ...i,
+    id_usuario: i.id_usuario ?? i.usuario?.id_usuario,
+    id_evento: i.id_evento ?? i.evento?.id_evento,
+  }
+}
+
 export async function getInscripcionesByUsuario(token: string, idUsuario: number): Promise<Inscripcion[]> {
-  return apiFetch<Inscripcion[]>(`/supabase/inscripciones/usuario/${idUsuario}`, token)
+  const lista = await apiFetch<any[]>(`/supabase/inscripciones/usuario/${idUsuario}`, token)
+  return lista.map(normalizarInscripcion)
 }
 
 export async function getInscripcionesByEvento(token: string, idEvento: number): Promise<Inscripcion[]> {
-  return apiFetch<Inscripcion[]>(`/supabase/inscripciones/evento/${idEvento}`, token)
+  const lista = await apiFetch<any[]>(`/supabase/inscripciones/evento/${idEvento}`, token)
+  return lista.map(normalizarInscripcion)
 }
 
 export async function inscribirse(token: string, idUsuario: number, idEvento: number): Promise<Inscripcion | null> {
-  return apiFetch<Inscripcion>('/supabase/inscripciones', token, {
+  const ins = await apiFetch<any>('/supabase/inscripciones', token, {
     method: 'POST',
     body: JSON.stringify({ idUsuario, idEvento }),
   })
+  return ins ? normalizarInscripcion(ins) : null
 }
 
 export async function desinscribirse(token: string, idUsuario: number, idEvento: number): Promise<boolean> {
